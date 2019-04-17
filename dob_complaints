@@ -1,0 +1,71 @@
+---
+title: "Pull Open Data Sets"
+output: html_notebook
+---
+
+## **Load Your Assets**
+### Libraries
+```{r}
+
+library(RSocrata)
+library(dplyr)
+library(soql)
+library(lubridate)
+library(readxl)
+
+```
+
+###
+```{r}
+complaint_cats <- read_excel("~/Data Enhancements/DOB_Complaint_Type_Codes.xlsx")
+```
+
+## **Get the Data**
+### Build the main URL components
+```{r}
+resource_id <- "eabe-havv"
+nyc_main_url <- paste0("https://data.cityofnewyork.us/resource/",resource_id,".json") 
+app_token <- "NxA3gCD1g81xcussE7S2VX3l5"
+```
+
+### Build the Query
+```{r}
+query <- soql() %>%
+  soql_add_endpoint(nyc_main_url) %>%
+  soql_limit(2000) %>%
+  soql_select(paste(
+    "complaint_number",
+    "status",
+    "date_entered",
+    "house_number",
+    "zip_code",
+    "house_street",
+    "bin",
+    "community_board",
+    "special_district",
+    "complaint_category",
+    "unit",
+    "disposition_date",
+    "disposition_code",
+    "inspection_date",
+    "dobrundate",
+    sep = ","
+    )) %>%
+  soql_order("date_entered", desc=TRUE) %>%
+  soql_where(paste0("date_entered like ","'%252019%25'")) %>%
+  as.character()
+
+#DOB dates are, for some reason, stored as text, so sys.date() - 365 not an option to get last year
+```
+
+### Make the Call to Socrata
+```{r}
+df <- read.socrata(query, app_token = app_token)
+```
+
+## **Transform the Data**
+### Make Subs
+```{r}
+df <- merge(df, complaint_cats, by = 'complaint_category', all.x = TRUE)
+```
+
